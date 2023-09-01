@@ -1,5 +1,7 @@
 hailo yolov6 retraining 환경에서 model/export.py 를 통해 만든 .onnx 파일 테스트 위함
 
+차량내 행동인식 테스트에서 활용한 레포
+(~2023_09_01)
 
 <div align="center">
   <p>
