@@ -1,3 +1,6 @@
+hailo yolov6 retraining 환경에서 model/export.py 를 통해 만든 .onnx 파일 테스트 위함
+
+
 <div align="center">
   <p>
     <a align="center" href="https://ultralytics.com/yolov5" target="_blank">
