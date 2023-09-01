@@ -380,6 +380,7 @@ class DetectMultiBackend(nn.Module):
             providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if cuda else ['CPUExecutionProvider']
             session = onnxruntime.InferenceSession(w, providers=providers)
             output_names = [x.name for x in session.get_outputs()]
+            LOGGER.info(f"output_names : {output_names}")
             meta = session.get_modelmeta().custom_metadata_map  # metadata
             if 'stride' in meta:
                 stride, names = int(meta['stride']), eval(meta['names'])

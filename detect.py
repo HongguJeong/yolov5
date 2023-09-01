@@ -128,6 +128,37 @@ def run(
             visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
             pred = model(im, augment=augment, visualize=visualize)
 
+        ########################################
+        ##### H9 meshgrid 사용해서 xywh 구하기
+        nc = 7         # number of classes
+        nl = len(pred) # number of detection layers
+        no = nc + 5    # number of outputs per anchor
+        ### generate anchor grid
+        # from yolov6m_wo_spp.yaml ->line "8~10"
+        anchors = [[10,13, 16,30, 33,23],  # P3/8
+                  [30,61, 62,45, 59,119],  # P4/16
+                  [116,90, 156,198, 373,326]]  # P5/32]
+        
+        a=torch.tensor(anchors).float().view(3, -1, 2)
+        anchor_grid = a.clone().view(nl, 1, -1, 1, 1, 2).to(pred[0].device)
+        
+        ## generate grid
+        z = [] # inference output
+        _stride = torch.Tensor([8, 16, 32])
+        grid = [torch.zeros(1)] * nl # init grid
+        for i in range(len(pred)):
+            bs, _, ny, nx, _ = pred[i].shape
+            yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)])
+            grid[i] = torch.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).float().to(pred[i].device)
+            
+            y = pred[i].sigmoid()
+            y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + grid[i].to(pred[i].device)) * _stride[i]  # xy
+            y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * anchor_grid[i]  # wh
+            z.append(y.view(bs, -1, no))
+
+        pred = (torch.cat(z, 1), pred)
+        #########################################
+
         # NMS
         with dt[2]:
             pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
@@ -143,7 +174,7 @@ def run(
                 s += f'{i}: '
             else:
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
-
+            
             p = Path(p)  # to Path
             save_path = str(save_dir / p.name)  # im.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
@@ -153,6 +184,9 @@ def run(
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
             if len(det):
                 # Rescale boxes from img_size to im0 size
+
+                LOGGER.info(f"det : {det}")
+
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results

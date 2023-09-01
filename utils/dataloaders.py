@@ -367,6 +367,7 @@ class LoadStreams:
             assert cap.isOpened(), f'{st}Failed to open {s}'
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
             fps = cap.get(cv2.CAP_PROP_FPS)  # warning: may return 0 or nan
             self.frames[i] = max(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), 0) or float('inf')  # infinite stream fallback
             self.fps[i] = max((fps if math.isfinite(fps) else 0) % 100, 0) or 30  # 30 FPS fallback
@@ -394,12 +395,44 @@ class LoadStreams:
             if n % self.vid_stride == 0:
                 success, im = cap.retrieve()
                 if success:
+                    ## H9
+                    # resized_im = self.longW2longH(im)
+                    # self.imgs[i] = resized_im
+                    # LOGGER.info(f"size {im.shape}")
                     self.imgs[i] = im
                 else:
                     LOGGER.warning('WARNING ⚠️ Video stream unresponsive, please check your IP camera connection.')
                     self.imgs[i] = np.zeros_like(self.imgs[i])
                     cap.open(stream)  # re-open stream if signal was lost
             time.sleep(0.0)  # wait time
+
+    def longW2longH(self, frame, output_width = 400, output_height = 640, padding_value = 114):
+        # 중앙 부분을 잘라내서 400x640으로 크기 조정
+        height, width, _ = frame.shape
+        crop_x = (width - height) // 2
+        cropped_frame = frame[:, crop_x:crop_x + height]
+        resized_frame = cv2.resize(cropped_frame, (output_width, output_height))
+
+        # aspect_ratio = output_width / output_height
+
+        # if aspect_ratio > 1:
+        #     new_width = self.img_size
+        #     new_height = int(self.img_size / aspect_ratio)
+        # else:
+        #     new_width = int(self.img_size * aspect_ratio)
+        #     new_height = self.img_size
+        
+        # resized_frame = cv2.resize(resized_frame, (new_width, new_height))
+
+        # pad_x = (self.img_size - new_width) // 2
+        # pad_y = (self.img_size - new_height) // 2
+
+        # padded_image = np.full((self.img_size, self.img_size, 3), padding_value, dtype=np.uint8)
+        
+        # # 패딩된 이미지에 원본 이미지 삽입
+        # padded_image[pad_y:pad_y + new_height, pad_x:pad_x + new_width] = resized_frame
+
+        return resized_frame
 
     def __iter__(self):
         self.count = -1
@@ -419,6 +452,8 @@ class LoadStreams:
             im = im[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW
             im = np.ascontiguousarray(im)  # contiguous
 
+        ### H9
+        LOGGER.info(f"{im.shape}")
         return self.sources, im, im0, None, ''
 
     def __len__(self):
